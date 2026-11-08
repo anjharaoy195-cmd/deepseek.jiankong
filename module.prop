@@ -1,0 +1,6 @@
+id=deepseek_balance
+name=DeepSeek余额监控
+version=v1.0.3
+versionCode=103
+author=Operit
+description=后台定时查询 DeepSeek API 余额，低于阈值弹 heads-up 通知提醒（Android 9~17 全兼容，纯 shell 零依赖）
