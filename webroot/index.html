@@ -1,1 +1,539 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>DeepSeek 余额监控</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --card2: #1c2129;
+    --border: #2d333b;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #3b82f6;
+    --green: #2ea043;
+    --yellow: #d29922;
+    --red: #f85149;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    padding: 16px 16px 40px;
+    line-height: 1.5;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .header h1 {
+    font-size: 18px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--muted); display: inline-block;
+  }
+  .dot.ok { background: var(--green); }
+  .dot.warn { background: var(--yellow); }
+  .dot.crit { background: var(--red); }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+  .balance-main {
+    text-align: center;
+    padding: 22px 16px;
+  }
+  .balance-amount {
+    font-size: 44px;
+    font-weight: 700;
+    letter-spacing: -1px;
+    margin: 6px 0 2px;
+    font-variant-numeric: tabular-nums;
+  }
+  .balance-currency {
+    font-size: 16px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .key-label {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: monospace;
+    background: var(--card2);
+    padding: 4px 10px;
+    border-radius: 6px;
+    display: inline-block;
+    margin-top: 8px;
+  }
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-top: 10px;
+  }
+  .badge.ok { background: rgba(46,160,67,.15); color: var(--green); }
+  .badge.warn { background: rgba(210,153,34,.15); color: var(--yellow); }
+  .badge.crit { background: rgba(248,81,73,.15); color: var(--red); }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .stat {
+    background: var(--card2);
+    border-radius: 10px;
+    padding: 10px 12px;
+  }
+  .stat .label { font-size: 12px; color: var(--muted); }
+  .stat .value { font-size: 16px; font-weight: 600; margin-top: 2px; }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: 1px solid var(--border);
+    background: var(--card2);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 11px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity .15s;
+    width: 100%;
+  }
+  .btn:active { opacity: .7; }
+  .btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .btn.danger {
+    background: rgba(248,81,73,.12);
+    border-color: rgba(248,81,73,.4);
+    color: var(--red);
+  }
+  .btn-row { display: flex; gap: 10px; margin-top: 6px; }
+  .section-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .section-title .toggle {
+    font-size: 12px;
+    color: var(--accent);
+    cursor: pointer;
+    user-select: none;
+  }
+  .form-group { margin-bottom: 14px; }
+  .form-group label {
+    display: block;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .form-group input, .form-group select {
+    width: 100%;
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+  }
+  .form-group input:focus { border-color: var(--accent); }
+  .form-hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .hidden { display: none !important; }
+  .log-box {
+    background: #0a0c10;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    font-family: monospace;
+    font-size: 11px;
+    color: var(--muted);
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 240px;
+    overflow-y: auto;
+  }
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #30363d;
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    opacity: 0;
+    transition: opacity .2s;
+    pointer-events: none;
+    z-index: 99;
+  }
+  .toast.show { opacity: 1; }
+  .key-input-wrap { position: relative; }
+  .key-input-wrap input { padding-right: 44px; }
+  .key-eye {
+    position: absolute; right: 8px; top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 16px;
+    user-select: none;
+  }
+  .footer { text-align: center; font-size: 11px; color: var(--muted); margin-top: 20px; }
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1><span class="dot" id="statusDot"></span>DeepSeek 余额监控</h1>
+    <span style="font-size:12px;color:var(--muted)" id="updateTime">—</span>
+  </div>
 
+  <!-- 余额主卡片 -->
+  <div class="card balance-main">
+    <div class="balance-currency">总余额</div>
+    <div class="balance-amount" id="balanceAmount">—</div>
+    <div class="balance-currency" id="balanceCurrency">CNY</div>
+    <div><span class="key-label" id="keyLabel">—</span></div>
+    <div><span class="badge" id="levelBadge">加载中…</span></div>
+    <div class="grid">
+      <div class="stat">
+        <div class="label">充值余额</div>
+        <div class="value" id="topupValue">—</div>
+      </div>
+      <div class="stat">
+        <div class="label">赠送余额</div>
+        <div class="value" id="grantValue">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 操作按钮 -->
+  <div class="card">
+    <button class="btn primary" id="btnCheck" onclick="checkNow()">🔄 立即检查</button>
+  </div>
+
+  <!-- 配置 -->
+  <div class="card">
+    <div class="section-title">
+      配置
+      <span class="toggle" id="cfgToggle" onclick="toggleConfig()">展开</span>
+    </div>
+    <div id="cfgBody" class="hidden">
+      <div class="form-group">
+        <label>API Key（sk- 开头，多个用逗号分隔）</label>
+        <div class="key-input-wrap">
+          <input type="password" id="cfgKeys" placeholder="sk-...">
+          <span class="key-eye" onclick="toggleKeyEye()">👁</span>
+        </div>
+        <div class="form-hint">用于查询余额，仅保存在本机 config.conf</div>
+      </div>
+      <div class="form-group hidden" id="currencyGroup">
+        <label>显示币种</label>
+        <select id="cfgCurrency">
+          <option value="">全部</option>
+          <option value="CNY">CNY（人民币）</option>
+          <option value="USD">USD（美元）</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>警告阈值（余额低于此值通知）</label>
+        <input type="number" id="cfgWarn" step="0.01" min="0">
+      </div>
+      <div class="form-group">
+        <label>严重阈值（余额低于此值强提醒）</label>
+        <input type="number" id="cfgCrit" step="0.01" min="0">
+      </div>
+      <div class="form-group">
+        <label>轮询间隔（秒）</label>
+        <input type="number" id="cfgInterval" step="1" min="60">
+        <div class="form-hint">默认 1800 = 30 分钟，最小 60 秒</div>
+      </div>
+      <div class="form-group">
+        <label>余额回升时通知</label>
+        <select id="cfgRecover">
+          <option value="1">开启</option>
+          <option value="0">关闭</option>
+        </select>
+      </div>
+      <button class="btn primary" onclick="saveConfig()">💾 保存配置</button>
+      <div class="form-hint" style="margin-top:8px">保存后需等待下个轮询周期生效，或点「立即检查」立即应用</div>
+    </div>
+  </div>
+
+  <!-- 日志 -->
+  <div class="card">
+    <div class="section-title">
+      最近日志
+      <span class="toggle" id="logToggle" onclick="toggleLog()">展开</span>
+    </div>
+    <div id="logBody" class="hidden">
+      <div class="log-box" id="logBox">加载中…</div>
+    </div>
+  </div>
+
+  <div class="footer">DeepSeek 余额监控 · KernelSU WebUI</div>
+  <div class="toast" id="toast"></div>
+
+<script>
+const MODDIR = "/data/adb/modules/deepseek_balance";
+
+/* ---------- ksu shell 执行封装 ---------- */
+function execShell(cmd) {
+  return new Promise((resolve) => {
+    const cbName = "cb_" + Date.now() + "_" + Math.floor(Math.random() * 1e6);
+    window[cbName] = (errno, stdout, stderr) => {
+      try { delete window[cbName]; } catch (e) {}
+      resolve({ errno: (errno === undefined ? 0 : errno), stdout: stdout || "", stderr: stderr || "" });
+    };
+    try {
+      ksu.exec(cmd, "{}", cbName);
+    } catch (e) {
+      try { delete window[cbName]; } catch (e2) {}
+      resolve({ errno: -1, stdout: "", stderr: String(e) });
+    }
+  });
+}
+
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 1800);
+}
+
+/* ---------- 配置解析 ---------- */
+function parseConf(text) {
+  const conf = {};
+  text.split("\n").forEach((line) => {
+    const m = line.match(/^([A-Z_]+)=(.*)$/);
+    if (m) conf[m[1]] = m[2].replace(/^"(.*)"$/, "$1").trim();
+  });
+  return conf;
+}
+
+/* ---------- 配置写入（base64 整个文件，避免转义问题） ---------- */
+function setConfKey(text, key, value) {
+  const re = new RegExp("^(" + key + "=).*$", "m");
+  return text.replace(re, "$1" + value);
+}
+
+function toBase64(str) {
+  if (typeof TextEncoder !== "undefined") {
+    const bytes = new TextEncoder().encode(str);
+    let bin = "";
+    bytes.forEach((b) => { bin += String.fromCharCode(b); });
+    return btoa(bin);
+  }
+  return btoa(unescape(encodeURIComponent(str)));
+}
+
+async function saveConfig() {
+  const cfg = {
+    "DEEPSEEK_KEYS": document.getElementById("cfgKeys").value.trim(),
+    "CURRENCY_FILTER": document.getElementById("cfgCurrency").value.trim(),
+    "WARN_THRESHOLD": document.getElementById("cfgWarn").value.trim(),
+    "CRITICAL_THRESHOLD": document.getElementById("cfgCrit").value.trim(),
+    "CHECK_INTERVAL": document.getElementById("cfgInterval").value.trim(),
+    "NOTIFY_ON_RECOVER": document.getElementById("cfgRecover").value.trim(),
+  };
+  if (!cfg.DEEPSEEK_KEYS) {
+    toast("⚠️ API Key 不能为空");
+    return;
+  }
+  if (parseFloat(cfg.CRITICAL_THRESHOLD) >= parseFloat(cfg.WARN_THRESHOLD)) {
+    toast("⚠️ 严重阈值应小于警告阈值");
+    return;
+  }
+
+  // 读原始文件，保留注释结构
+  const r = await execShell("cat " + MODDIR + "/config.conf");
+  if (r.errno !== 0 || !r.stdout) {
+    toast("❌ 读取配置失败");
+    return;
+  }
+  let content = r.stdout;
+  content = setConfKey(content, "DEEPSEEK_KEYS", '"' + cfg.DEEPSEEK_KEYS + '"');
+  content = setConfKey(content, "CURRENCY_FILTER", '"' + cfg.CURRENCY_FILTER + '"');
+  content = setConfKey(content, "WARN_THRESHOLD", cfg.WARN_THRESHOLD);
+  content = setConfKey(content, "CRITICAL_THRESHOLD", cfg.CRITICAL_THRESHOLD);
+  content = setConfKey(content, "CHECK_INTERVAL", cfg.CHECK_INTERVAL);
+  content = setConfKey(content, "NOTIFY_ON_RECOVER", cfg.NOTIFY_ON_RECOVER);
+
+  const b64 = toBase64(content);
+  const w = await execShell("printf '%s' '" + b64 + "' | base64 -d > " + MODDIR + "/config.conf");
+  if (w.errno !== 0) {
+    toast("❌ 保存失败: " + (w.stderr || "未知错误"));
+    return;
+  }
+  toast("✅ 配置已保存");
+}
+
+/* ---------- 余额状态 ---------- */
+function parseCheckOutput(stdout) {
+  // 形如: [sk-xxxxxxxx...xxxx] [CNY] 余额:10.65 充值:10.65 赠送:0.00 |
+  const data = { label: "", currency: "", total: "", topup: "", grant: "" };
+  const labelM = stdout.match(/\[([^\]]+)\]/);
+  if (labelM) data.label = labelM[1];
+  const curM = stdout.match(/\[(CNY|USD|[\w-]+)\]\s*余额/);
+  if (curM) data.currency = curM[1];
+  const totalM = stdout.match(/余额[:：]([0-9.]+)/);
+  if (totalM) data.total = totalM[1];
+  const topupM = stdout.match(/充值[:：]([0-9.]+)/);
+  if (topupM) data.topup = topupM[1];
+  const grantM = stdout.match(/赠送[:：]([0-9.]+)/);
+  if (grantM) data.grant = grantM[1];
+  return data;
+}
+
+function parseState(text) {
+  // state 格式: label|currency|total|level
+  const data = { label: "", currency: "", total: "", level: 0 };
+  const lines = text.split("\n").filter((l) => l.trim());
+  const line = lines[lines.length - 1] || "";
+  const p = line.split("|");
+  if (p.length >= 3) {
+    data.label = p[0];
+    data.currency = p[1];
+    data.total = p[2];
+    data.level = parseInt(p[3] || "0", 10);
+  }
+  return data;
+}
+
+function renderBalance(data) {
+  document.getElementById("balanceAmount").textContent = data.total || "—";
+  document.getElementById("balanceCurrency").textContent = data.currency || "CNY";
+  document.getElementById("keyLabel").textContent = data.label || "—";
+  document.getElementById("topupValue").textContent = data.topup || "—";
+  document.getElementById("grantValue").textContent = data.grant || "—";
+
+  const dot = document.getElementById("statusDot");
+  const badge = document.getElementById("levelBadge");
+  if (data.level === 2) {
+    dot.className = "dot crit";
+    badge.className = "badge crit";
+    badge.textContent = "严重：余额不足";
+  } else if (data.level === 1) {
+    dot.className = "dot warn";
+    badge.className = "badge warn";
+    badge.textContent = "警告：余额偏低";
+  } else if (data.total) {
+    dot.className = "dot ok";
+    badge.className = "badge ok";
+    badge.textContent = "正常";
+  } else {
+    dot.className = "dot";
+    badge.className = "badge";
+    badge.textContent = "暂无数据";
+  }
+  const now = new Date();
+  document.getElementById("updateTime").textContent =
+    now.getHours().toString().padStart(2, "0") + ":" +
+    now.getMinutes().toString().padStart(2, "0") + ":" +
+    now.getSeconds().toString().padStart(2, "0");
+}
+
+/* ---------- 加载配置到表单 ---------- */
+function fillConfig(conf) {
+  document.getElementById("cfgKeys").value = conf.DEEPSEEK_KEYS || "";
+  document.getElementById("cfgCurrency").value = conf.CURRENCY_FILTER || "";
+  document.getElementById("cfgWarn").value = conf.WARN_THRESHOLD || "20";
+  document.getElementById("cfgCrit").value = conf.CRITICAL_THRESHOLD || "5";
+  document.getElementById("cfgInterval").value = conf.CHECK_INTERVAL || "1800";
+  document.getElementById("cfgRecover").value = conf.NOTIFY_ON_RECOVER || "1";
+
+  // 币种选择默认隐藏，config.conf 里 SHOW_CURRENCY_FILTER=1 时显示
+  const showCurrency = String(conf.SHOW_CURRENCY_FILTER || "0").trim() === "1";
+  document.getElementById("currencyGroup").classList.toggle("hidden", !showCurrency);
+}
+
+/* ---------- 立即检查（联网） ---------- */
+async function checkNow() {
+  const btn = document.getElementById("btnCheck");
+  btn.textContent = "⏳ 检查中…";
+  btn.disabled = true;
+  toast("正在查询余额…");
+  try {
+    const r = await execShell("sh " + MODDIR + "/core.sh check");
+    if (r.errno !== 0 && !r.stdout) {
+      toast("❌ 检查失败: " + (r.stderr || "无输出"));
+      return;
+    }
+    const data = parseCheckOutput(r.stdout);
+    // 用最新 level 重新渲染
+    const stateR = await execShell("cat " + MODDIR + "/state");
+    const stateData = parseState(stateR.stdout);
+    data.level = stateData.level;
+    renderBalance(data);
+    toast("✅ 已更新");
+  } finally {
+    btn.textContent = "🔄 立即检查";
+    btn.disabled = false;
+  }
+}
+
+/* ---------- 加载日志 ---------- */
+async function loadLog() {
+  const r = await execShell("tail -n 30 " + MODDIR + "/deepseek_balance.log");
+  document.getElementById("logBox").textContent = r.stdout || "(无日志)";
+}
+
+/* ---------- 加载全部 ---------- */
+async function loadAll() {
+  // 读配置
+  const cr = await execShell("cat " + MODDIR + "/config.conf");
+  if (cr.stdout) fillConfig(parseConf(cr.stdout));
+  // 读 state 快速显示
+  const sr = await execShell("cat " + MODDIR + "/state");
+  if (sr.stdout) renderBalance(parseState(sr.stdout));
+  loadLog();
+}
+
+/* ---------- UI 交互 ---------- */
+function toggleConfig() {
+  const body = document.getElementById("cfgBody");
+  const t = document.getElementById("cfgToggle");
+  body.classList.toggle("hidden");
+  t.textContent = body.classList.contains("hidden") ? "展开" : "收起";
+}
+function toggleLog() {
+  const body = document.getElementById("logBody");
+  const t = document.getElementById("logToggle");
+  body.classList.toggle("hidden");
+  t.textContent = body.classList.contains("hidden") ? "展开" : "收起";
+}
+function toggleKeyEye() {
+  const inp = document.getElementById("cfgKeys");
+  inp.type = inp.type === "password" ? "text" : "password";
+}
+
+/* ---------- 启动 ---------- */
+loadAll();
+</script>
+</body>
+</html>
