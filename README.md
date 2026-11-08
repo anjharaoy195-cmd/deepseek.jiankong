@@ -62,7 +62,7 @@ HTTPS 请求按以下顺序降级：`curl` → `wget` → `toybox wget` → `ope
 - API Key 明文存于模块目录，仅 root 可读
 - 建议模块目录权限保持默认（root 专属）
 
-Engliah：
+English：
 # DeepSeek Balance Monitor Module
 
 Periodically queries the official DeepSeek API balance in the background. When the balance falls below the threshold, it pops up a heads-up floating notification + vibration alert.
